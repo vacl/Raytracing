@@ -203,8 +203,8 @@ Vec3f trace(
 
 Vec3f *image;
 std::vector<Sphere> spheres;
-std::vector<std::pair<unsigned, unsigned>> blocks;
-std::mutex mtx;
+std::vector<std::pair<unsigned, unsigned>> *blocks;
+std::mutex *mtx;
 
 void renderBlock(unsigned left, unsigned top){
     float fov = 30.0, invWidth = 1 / float(width), invHeight = 1 / float(height);
@@ -224,17 +224,17 @@ void renderBlock(unsigned left, unsigned top){
 }
 
 void threadMain(){
-    mtx.lock();
-    while(blocks.size() > 0){
-        //std::cout << blocks.size() << " blocks remaining" << std::endl;
-        unsigned left = blocks.back().first;
-        unsigned top = blocks.back().second;
-        blocks.pop_back();
-        mtx.unlock();
+    mtx->lock();
+    while(blocks->size() > 0){
+        //std::cout << blocks->size() << " blocks remaining" << std::endl;
+        unsigned left = blocks->back().first;
+        unsigned top = blocks->back().second;
+        blocks->pop_back();
+        mtx->unlock();
         renderBlock(left, top);
-        mtx.lock();
+        mtx->lock();
     }
-    mtx.unlock();
+    mtx->unlock();
 }
 
 void renderSinglethreaded(){
@@ -269,13 +269,15 @@ void render(){
             return;
         }
 
+        blocks = new std::vector<std::pair<unsigned, unsigned>>(0);
+        mtx = new std::mutex();
         for(unsigned i = 0; i < width; i += BLOCK_WIDTH){
             for(unsigned j = 0; j < height; j += BLOCK_HEIGHT){
-                blocks.push_back(std::make_pair(i, j));   //top left of each block
+                blocks->push_back(std::make_pair(i, j));   //top left of each block
             }
         }
 
-        std::cout << "split image into blocks, rendering in " << THREAD_COUNT << " threads" << std::endl;
+        std::cout << "split image into " << blocks->size() << " blocks, rendering in " << THREAD_COUNT << " threads" << std::endl;
 
         std::thread threads[THREAD_COUNT];
         for(int i = 0; i < THREAD_COUNT; i++){
@@ -320,7 +322,7 @@ int main(int argc, char **argv)
 	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
     
-	std::cout << "Berechnungszeit: " << (duration/1000000) << "." << (duration%1000000) << "s";
-	getchar();
+	std::cout << "Berechnungszeit: " << (duration/1000000) << "." << (duration%1000000) << "s" << std::endl;
+	//getchar();
     return 0;
 }
